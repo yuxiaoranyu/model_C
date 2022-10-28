@@ -1,0 +1,85 @@
+{
+    "global": {
+        "policystore_ip": "127.0.0.1",
+        "policystore_port": 34567,
+        "object_infer_timeout_ms": 200, //推理超时时间，适用于小包、条包产品
+        "image_infer_timeout_ms": 200, //图片检测超时时间
+        "image_max_interval": 20,   // 同一检测对象多个相机拍摄的多幅图像的最大间隔，适用于小包、条包产品
+        "brand_id" : 0,    // 算法的相对路径
+        "box_queue_len":  2,  //箱缺条产品，同时在线烟箱数
+        "box_min_elapsed":  8000,  //箱缺条产品，箱成形到读码的最小停留时间
+        "image_save_path": "/home/9000/tiaobaoe6",
+        "image_file_keep_days": 20,
+        "log_file_keep_days": 60,
+        "image_orginal_rate": -1, //原始图像上报比例
+        "image_binning_rate": -1  //将分辩率图像上报比例
+    },
+    "camera-1": {
+        "serial_number": "5G007D6PAK00004",
+        "access_code": "27 3E 76 06 97 ED 27 31",
+        "gain": 0,
+        "exposure_time": 50,
+        "trigger_delay": 0,
+        "capture_compensation_ms": -10,
+        "image_save_strategy": 0,  //图片保存策略， 0不保存，1全部保存
+        "image_save_sample": 10,
+        "image_save_format": "bmp"
+    },
+    "camera-7": {
+        "loop": false,
+        "image_path": "/home/HwHiAiUser/MVP_Atlas/v12/bm",
+        "start_delay": 5, //启动延时
+        "interval": 100,
+        "image_save_strategy": 1,
+        "image_save_sample": 10,
+        "image_save_format": "bmp",
+        "enable_transform": false,
+        "transform_map": [
+            {
+                "from": {"x": 0, "y": 1},
+                "to": {"x": 0, "y": 1}
+            },
+            {
+                "from": {"x": 0, "y": 1},
+                "to": {"x": 0, "y": 1}
+            },
+            {
+                "from": {"x": 0, "y": 1},
+                "to": {"x": 0, "y": 1}
+            }
+        ]
+    },
+    "executor": {
+        "type": "pcp",
+        "connected": true,
+        "serial": "ttyS2",
+        "attribute": "定时脉冲发生器-0.启动;",
+        "value": "true;"
+        "snap_attribute": "定时脉冲发生器-0.启动;",
+        "snap_attribute_value": "true",
+    },
+    "executor": {
+        "type": "plc",
+        "ip": "127.0.0.1", //IO板地址
+        "rack": 0,
+        "slot": 1,
+        "data_width": 2,
+        "db_number": 1,
+        "start_index": 0,
+        "write_value": 0,
+        "connected": true
+    },
+    "executor": {
+        "type": "robot",
+        "tcp_port": 3000
+    },
+    "executor": {
+        "type": "pcpudp",
+        "connected": true,
+        "abnormal_kick": true,
+        "local_ip": "127.0.0.1", //ISG地址
+        "local_port": 3000, //ISG端口
+        "remote_ip": "127.0.0.1", //IO板地址
+        "remote_port": 3000, //IO板端口
+    }
+}

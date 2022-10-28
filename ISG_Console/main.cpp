@@ -1,0 +1,173 @@
+﻿#include <QCoreApplication>
+#include <QDebug>
+#include <QTextCodec>
+#include <QTranslator>
+#include <QThreadPool>
+#include <iostream>
+#include "BaseLib/EngineProject.h"
+#include "ImgSrc/SoftCamera.h"
+#include "IOCtrl/PCPSerialCtrl.h"
+#include "IOCtrl/SiemensS7PLC.h"
+#include "IOCtrl/PLCUdpCtrl.h"
+#include "AssistLib/AuxTask.h"
+#include "ThirdParty/dump/CrashHandler/CrashHandler.h"
+#ifdef Q_OS_LINUX
+#include "ThirdParty/license/LicenseDevice.h"
+#endif
+#ifdef USING_CAMERA_DAHUA
+#include "ImgSrc/DahuaCamera.h"
+#endif
+#if ((defined USING_CAMERA_BASLER) || (defined USING_CAMERA_BASLER_6_0) || (defined USING_CAMERA_BASLER_6_2))
+#include "ImgSrc/BaslerCCDCamera.h"
+#endif
+#ifdef USING_MULTICAM_GRABBER
+#include "ImgSrc/MultiCamGrab.h"
+#endif
+#include "Sensor/BarCoder.h"
+
+#define SOFTWARE_VERSION    "V2R2C02"
+
+#include <QSharedMemory>
+struct SharedMemory : QSharedMemory {
+    SharedMemory(QString pName) : QSharedMemory(pName){}
+};
+typedef std::shared_ptr<SharedMemory> SharedMemoryPtr;
+
+void handleInput(EngineProject *project)
+{
+    std::string cmd;
+    for (;;) {
+        std::cout << "ISG>";
+        std::getline(std::cin, cmd);
+        if (cmd == "exit") {
+            return;
+        } else if (cmd == "start") {
+            project->setAttr("enabled", true);
+        } else if (cmd == "stop") {
+            project->setAttr("enabled", false);
+        } else if (cmd == "save") {
+            project->setAttr("save", true);
+        } else if (cmd == "help") {
+            qDebug() << "start: start ISG project.";
+            qDebug() << "stop: stop ISG project.";
+            qDebug() << "exit: exit this program.";
+        } else if (cmd == "test_dump") {
+            int *p = 0;
+            *p = 123;
+        } else if (!cmd.empty()) {
+            project->doCommand(QString::fromLocal8Bit(cmd.c_str()));
+        }
+        QThread::msleep(10);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    //利用共享内存判断程序是否重复启动
+    SharedMemoryPtr sharedMemory = std::make_shared<SharedMemory>((char *)"ISG_Console");
+    if (sharedMemory->attach()) {
+        if (!sharedMemory->detach()) {
+            qDebug() << "detach failed!";
+            return 1;
+        }
+    }
+
+    if (!sharedMemory->create(1)) {
+        qInfo() << "ISG_Console exist, please use ps -ef | grep ISG_Console to check!";
+        qInfo() << "sharedMemory error type: " << sharedMemory->error();
+        qInfo() << "sharedMemory ERROR: " << sharedMemory->errorString();
+        return 1;
+    }
+
+    QCoreApplication app(argc, argv);
+    AuxTask auxTask;   //输出重定向设置，退出程序前还原输出重定向防止异常打印
+
+    qInfo() << "ISG_Console is started ...";
+
+#ifdef Q_OS_LINUX
+    LicenseDevice licenseDevice;
+
+    if  (!licenseDevice.verify(QCoreApplication::applicationDirPath() + "/lic", true)) {
+        qInfo() << "no valid license found, exit";
+        return 1;
+    }
+
+    CrashManager::CrashHandler::instance()->Init(QCoreApplication::applicationDirPath() + "/crashdump");
+#endif
+
+
+
+    QTranslator t1, t2;
+    t1.load("qt_zh_CN", ":/lang");
+    t2.load("ISG_Console_zh_CN", ":/lang");
+    QCoreApplication::installTranslator(&t1);
+    QCoreApplication::installTranslator(&t2);
+    QLocale::setDefault(QLocale::Chinese);
+    auto codec = QTextCodec::codecForName("gbk");   //敏光PCP中文字符使用了GBK编码
+    if (codec) {
+        QTextCodec::setCodecForLocale(codec);
+    }
+
+    // 跨线程传递参数需要注册
+    qRegisterMetaType<uint64_t>("uint64_t");
+    qRegisterMetaType<uint16_t>("uint16_t");
+    qRegisterMetaType<POLICY_INFO_MSG_HEADER>("POLICY_INFO_MSG_HEADER"); //WCP消息头跨进程传统
+    qRegisterMetaType<PCP_UDP_MSG_HEAD>("PCP_UDP_MSG_HEAD"); //UDP消息头跨进程传统
+
+    qRegisterMetaType<IMAGE_DATA>("IMAGE_DATA");  //相机将图片数据发送给算法和综合汇总
+    qRegisterMetaType<IMAGE_GROUP_DATA>("IMAGE_GROUP_DATA"); //imageGroup将图像组数据发送给batchInfer
+    qRegisterMetaType<IMAGE_IAS_RESULT>("IMAGE_IAS_RESULT"); //算法将图像检测结果发送给imageMultipler
+    qRegisterMetaType<OBJECT_IMAGE_RESULT>("OBJECT_IMAGE_RESULT"); //imageMultipler将图像检测结果发送给ObjectResult
+    qRegisterMetaType<IMAGE_RESULT_RECORD>("IMAGE_RESULT_RECORD"); //imageMultipler将图像检测结果信息传递给TCP Report
+
+    EngineProject::registerObjectCreator<SoftCamera>("soft");
+#ifdef USING_CAMERA_DAHUA
+    EngineProject::registerObjectCreator<DahuaCamera>("dahua");
+#endif
+#if ((defined USING_CAMERA_BASLER) || (defined USING_CAMERA_BASLER_6_0) || (defined USING_CAMERA_BASLER_6_2))
+    EngineProject::registerObjectCreator<BaslerCCDCamera>("basler");
+#endif
+#ifdef USING_MULTICAM_GRABBER
+    EngineProject::registerObjectCreator<MultiCamGrab>("multicam");
+#endif
+
+    EngineProject::registerObjectCreator<PCPSerialCtrl>("pcp");
+    EngineProject::registerObjectCreator<PCPUdpCtrl>("pcpudp");
+#ifdef Q_OS_LINUX
+    EngineProject::registerObjectCreator<SiemensS7PLC>("plc");
+#endif
+    EngineProject::registerObjectCreator<BarCoder>("barcoder");
+    EngineProject::registerObjectCreator<PLCUdpCtrl>("plc_udp_kick");
+
+    EngineProject project;
+
+    project.m_pAuxTask = &auxTask;
+    QThreadPool::globalInstance()->setMaxThreadCount(500);
+
+    auxTask.checkConfigFile(QCoreApplication::applicationDirPath() + "/product_params.json");
+    qInfo() << "begin ------";
+    if (project.setAttr("def", QCoreApplication::applicationDirPath() + "/product_def.json", true)) {
+        if (project.setAttr("params", QCoreApplication::applicationDirPath() + "/product_params.json", true)) {
+            QThread::sleep(1);
+            project.setAttr("enabled", true, true);
+        }
+    }
+
+    app.setApplicationVersion(SOFTWARE_VERSION);
+    QDate buildDate = QLocale(QLocale::English).toDate(QString(__DATE__).replace("  ", " 0"), "MMM dd yyyy");
+    app.setOrganizationName(buildDate.toString("yyyy-MM-dd"));
+    project.tcpClient()->start();
+
+    project.m_pAuxTask->cleanExpiredLogFiles(project.get_LogFileKeepDays());
+    project.m_pAuxTask->cleanExpiredImageDirectory(project.imageSavePath(), project.get_ImageFileKeepDays());
+    project.m_pAuxTask->cleanImageDirectoryForNoSpace(project.imageSavePath());
+
+    handleInput(&project);
+
+    if (sharedMemory->isAttached()) {
+        qDebug() << QString("detach sharedMemory %1 ").arg(sharedMemory->key());
+        sharedMemory->detach();
+    }
+
+    return 0;
+}

@@ -1,0 +1,50 @@
+{
+    "product": "tiaobao-a",
+    "version": "2.0",
+    "algorithm_type": 0,
+    "camera": [
+        {
+            "id": 1,
+            "type": "basler"
+        },
+        {
+            "id": 2,
+            "type": "basler"
+        },
+        {
+            "id": 3,
+            "type": "basler"
+        },
+        {
+            "id": 4,
+            "type": "basler"
+        },
+        {
+            "id": 5,
+            "type": "basler"
+        },
+        {
+            "id": 6,
+            "type": "basler"
+        },
+        {
+            "id": 7,
+            "type": "basler"
+        }
+    ],
+    "sensor": [
+        {
+            "type": "barcoder"
+        }
+    ],	
+    "executor": [
+        {
+            "id": 1,
+            "type": "pcpudp"
+        },
+        {
+            "id": 2,
+            "type": "plc_udp_kick"
+        }
+    ]
+}

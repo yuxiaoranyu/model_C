@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/lang">
+        <file>ISG_Console_zh_CN.qm</file>
+        <file>qt_zh_CN.qm</file>
+    </qresource>
+</RCC>

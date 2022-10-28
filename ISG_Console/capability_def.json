@@ -1,0 +1,42 @@
+{
+    "product": "tiaobao-a", 
+	 "algorithm_type": 2,   //0: IAS_DT  1:IAS_AI  2: IAS_DT_AI
+     "version": "1.0",
+    "camera": [
+        {
+            "id": 1,
+            "type": "dahua"
+        },
+        {
+            "id": 2,
+            "type": "hikvision"
+        },
+        {
+            "id": 3,
+            "type": "soft"
+        },
+        {
+            "id": 4,
+            "type": "multicam"
+        }
+    ],
+    "sensor": [
+	{
+		"type": "barcode"
+	}
+    ],
+    "executor": [
+        {
+            "type": "pcp"
+        },
+        {
+            "type": "plc"
+        },
+        {
+            "type": "robot"
+        },
+        {
+            "type": "pcpudp"
+        }
+    ]
+}
