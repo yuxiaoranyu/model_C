@@ -3,29 +3,38 @@
 
 struct Config_Data
 {
-    std::string model_path;                   //模型文件路径
-    std::string template_path;                //模板图文件路径
-    float confidence_threshold = 0.0;         //置信度阈值
-    int ex_pixel;                             //模板匹配时，膨胀的像素点
-    int min_area;                             //最小区域面积
-    int max_area = 100;                       //最大区域面积
-    int num_pixel;                           // 点数目,作为灰度图阈值，对灰度图像进行阈值操作得到二值图像
+    Config_Data() : score_min_threshold(0),
+                    score_max_threshold(0),
+                    heat_threshold(150),
+                    heat_binary_min_area(100),
+                    defective_min_area(64),
+                    btemplate_match(false),
+                    expand_pixel(3),
+                    diff_threshold(50),
+                    dismatched_point_threshold(50) {}
 
-    int binary_threshold;                    //二进制阈值
-    float score_min_threshold = 0.0;         //得分最小阈值
-    float score_max_threshold = 0.0;        //得分最大阈值
-    int heat_threshold = 150;               //热力度阈值
-    int method_number = 0;                   //检测类别
-    std::vector<cv::Point> effective_area;  //有效区域
+    std::string model_path;                //模型文件路径
+    std::string template_path;             //模板图文件路径
+    float score_min_threshold;             //得分最小阈值
+    float score_max_threshold;             //得分最大阈值
+    int heat_threshold;                    //热力度阈值
+    int heat_binary_min_area;              //热力图中灰度大于heat_threshold的最少累积点数
+    int defective_min_area;                //最小允许的缺陷框大小
+    std::vector<cv::Point> effective_area; //有效区域
+    bool btemplate_match;                  //是否开展模板匹配
+    int expand_pixel;                      //模板匹配时，膨胀的像素点
+    int diff_threshold;                    //原图和模板图做差后的颜色二值化阈值 (0~255)
+    int dismatched_point_threshold;        //原图和模板图做差二值化后的为1的点数阈值
 };
 
-struct RoiInfo
+struct PatchCore_Result
 {
-    RoiInfo() : prob(0), ltx(0), lty(0), rbx(0), rby(0) {}
+    PatchCore_Result() : result(true), patchcore_score(0), ltx(0), lty(0), rbx(0), rby(0) {}
 
-    double prob; //预测得分
-    int ltx; //left_top_x  左上角
+    bool result;
+    float patchcore_score;
+    int ltx;                   // left_top_x  左上角
     int lty;
-    int rbx; //right_bottom_x 右上角
+    int rbx; // right_bottom_x 右上角
     int rby;
 };

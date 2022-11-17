@@ -25,7 +25,8 @@ TensorRt::TensorRt(const string modelPath, const size_t inSize, const size_t out
     m_context(nullptr)
 {
     static Logger gLogger;
-    std::cout<<"model path "<<modelPath<<std::endl;
+
+    std::cout<<"tensorRt model path "<<modelPath<<std::endl;
     std::ifstream file(modelPath, std::ios::binary);
     if (file.good())
     {
@@ -53,11 +54,11 @@ TensorRt::TensorRt(const string modelPath, const size_t inSize, const size_t out
         CHECK(cudaMalloc(&m_buffers[1], outSize));
         CHECK(cudaStreamCreate(&m_stream));
         m_bInitOk = true;
-        std::cout<<"init ok"<<std::endl;
+        std::cout<<"tensorRt init ok"<<std::endl;
     }
     else
     {
-        std::cerr << "read " << modelPath << " error!" << std::endl;
+        std::cerr << "tensorRt read " << modelPath << " error!" << std::endl;
     }
 }
 

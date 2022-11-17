@@ -1,7 +1,6 @@
 ﻿#include "PatchCore.h"
 
-PatchCore::PatchCore()
-    : m_patchcore_pt(nullptr)
+PatchCore::PatchCore() : m_patchcore_pt(nullptr)
 {
 }
 
@@ -25,9 +24,7 @@ void PatchCore::cleanup()
     }
 }
 
-RoiInfo PatchCore::infer(const std::vector<cv::Mat> &images)
+PatchCore_Result PatchCore::infer(const std::vector<cv::Mat> &images)
 {
-    RoiInfo results = m_patchcore_pt->infer(images);
-
-    return results;
+    return m_patchcore_pt->infer(images);
 }

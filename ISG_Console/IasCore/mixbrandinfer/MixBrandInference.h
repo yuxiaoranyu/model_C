@@ -9,48 +9,46 @@
 #include <opencv2/opencv.hpp>
 #include <QJsonArray>
 
-class YoloResnetAiInference : public BaseAiInference
+class MixBrandInference : public BaseAiInference
 {
 public:
-    YoloResnetAiInference(); //构造函数
-    ~YoloResnetAiInference(); //析构函数
+    MixBrandInference(); //构造函数
+    ~MixBrandInference(); //析构函数
 
 public:
     bool load(const std::string &param) override;  //加载
     bool update(const std::string &param) override; //更新
     std::vector<BaseAIResult> infer(const std::vector<int> &ids, const std::vector<cv::Mat> &images) override; //推理
-    bool transformCoordinates(); //坐标转换矩阵构建
     bool remove() override;
 
+private:
     struct YoloParam
     {
         YoloParam() { yolo_model = nullptr; }
 
-        Yolov5 *yolo_model;
-        std::string model_path;
+        std::string model_path;  //模型文件全路径
+        Yolov5 *yolo_model; //yolo检测，只进行目标检测，不进行目标分类
     };
 
     struct ResNetParam
     {
         ResNetParam() { resnet_model = nullptr; }
-        ResNet *resnet_model;
-        std::string model_path;
-        QJsonArray label_array;
+
+        std::string model_path; //模型文件全路径
+        QJsonArray label_array; //resnet配置的分类ID及参数
+        ResNet *resnet_model; //resnet检测
     };
 
 private:
-//    int m_gpu_type;  //GPU类型
-//    bool m_run;      //是否启用推理
-    YoloParam yoloparam;
+    YoloParam yoloparam; //yolo
     ResNetParam resnetparam;
-    std::map<int, cv::Mat> m_transform_map;              //每个相机的转换矩阵
 };
 
-class YoloResnetAiInferenceFactory : public BaseAiInferenceFactory
+class MixBrandInferenceFactory : public BaseAiInferenceFactory
 {
 public:
     BaseAiInference *getAiInference() override
     {
-        return new YoloResnetAiInference();
+        return new MixBrandInference();
     }
 };

@@ -1,9 +1,9 @@
 ﻿/*
- * @Author: error: git config user.name && git config user.email & please set dead value or install git
- * @Date: 2022-09-27 10:44:27
- * @LastEditors: error: git config user.name && git config user.email & please set dead value or install git
- * @LastEditTime: 2022-09-27 10:55:27
- * @FilePath: /code/algorithm/core/module/patchcore/post_process.hpp
+ * @Author: yuxiaoranyu 2312067800@qq.com
+ * @Date: 2022-10-26 15:49:52
+ * @LastEditors: yuxiaoranyu 2312067800@qq.com
+ * @LastEditTime: 2022-11-14 16:44:27
+ * @FilePath: /ISG_Console/IasCore/patchcore/post_process.h
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 #pragma once

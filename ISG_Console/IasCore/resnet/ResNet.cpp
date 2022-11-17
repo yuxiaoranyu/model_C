@@ -26,7 +26,5 @@ void ResNet::cleanup()
 
 std::vector<ResNetResult> ResNet::infer(const std::vector<cv::Mat> &images)
 {
-    std::vector<ResNetResult> results = m_resnetTensorRt->infer(images);
-
-    return results;
+    return m_resnetTensorRt->infer(images);
 }

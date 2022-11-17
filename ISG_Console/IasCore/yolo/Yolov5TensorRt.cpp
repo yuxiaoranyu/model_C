@@ -24,8 +24,9 @@ Yolov5TensorRt::~Yolov5TensorRt()
 
 std::vector<std::vector<YoloResult>> Yolov5TensorRt::infer(const std::vector<cv::Mat> &images)
 {
-    int channel1_offset = YOLO_IMAGE_HEIGHT * YOLO_IMAGE_WIDTH;
-    int channel2_offset = 2 * YOLO_IMAGE_HEIGHT * YOLO_IMAGE_WIDTH;
+    const static int channel1_offset = YOLO_IMAGE_HEIGHT * YOLO_IMAGE_WIDTH;
+    const static int channel2_offset = 2 * YOLO_IMAGE_HEIGHT * YOLO_IMAGE_WIDTH;
+
     std::cout<<"image size "<<images.size()<<std::endl;
     std::cout<<"m_batch_size "<<m_batch_size<<std::endl;
 
@@ -40,7 +41,7 @@ std::vector<std::vector<YoloResult>> Yolov5TensorRt::infer(const std::vector<cv:
     }
 
     auto start = std::chrono::system_clock::now();
-    std::vector<cv::Mat> imgs_buffer(m_batch_size);
+    std::vector<cv::Mat> imgs_buffer(m_batch_size); //yolo只支持三通道图片推理，定义三通道图片数组
 
     memset((void *)m_cudaInputData, 0, sizeof(m_cudaInputData));
     memset((void *)m_cudaOutputData, 0, sizeof(m_cudaOutputData));
@@ -67,6 +68,7 @@ std::vector<std::vector<YoloResult>> Yolov5TensorRt::infer(const std::vector<cv:
         //图像预处理
         cv::Mat pr_img = preprocess_img(imgs_buffer[i], YOLO_IMAGE_WIDTH, YOLO_IMAGE_HEIGHT);
 
+        //图像输入缓冲区构建
         int image_offset =  i * 3 * YOLO_IMAGE_HEIGHT * YOLO_IMAGE_WIDTH;
         int idx = 0;
         for (int row = 0; row < YOLO_IMAGE_HEIGHT; ++row)
@@ -74,7 +76,6 @@ std::vector<std::vector<YoloResult>> Yolov5TensorRt::infer(const std::vector<cv:
             uchar *uc_pixel = pr_img.data + row * pr_img.step;
             for (int col = 0; col < YOLO_IMAGE_WIDTH; ++col)
             {
-                //输入缓冲区构建
                 m_cudaInputData[image_offset + idx] = (float)uc_pixel[2] / 255.0;
                 m_cudaInputData[image_offset + idx + channel1_offset] = (float)uc_pixel[1] / 255.0;
                 m_cudaInputData[image_offset + idx + channel2_offset] = (float)uc_pixel[0] / 255.0;
@@ -92,7 +93,7 @@ std::vector<std::vector<YoloResult>> Yolov5TensorRt::infer(const std::vector<cv:
     for (size_t i = 0; i < images.size(); i++)
     {
         std::vector<Yolo::Detection> res;
-        nms(res, &m_cudaOutputData[i * OutputSize], 0.5, 0.4); // CONF_THRESH ,NMS_THRESH
+        nms(res, &m_cudaOutputData[i * OutputSize], 0.5, 0.4); //执行NMS(非极大抑制),阈值来自开源代码样例
         std::vector<YoloResult> result(res.size());
         for (size_t j = 0; j < res.size(); j++)
         {
