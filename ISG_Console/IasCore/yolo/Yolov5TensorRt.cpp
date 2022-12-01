@@ -22,7 +22,7 @@ Yolov5TensorRt::~Yolov5TensorRt()
     delete[] m_cudaOutputData;
 }
 
-std::vector<std::vector<YoloResult>> Yolov5TensorRt::infer(const std::vector<cv::Mat> &images)
+bool Yolov5TensorRt::infer(const std::vector<cv::Mat> &images, std::vector<std::vector<YoloResult>> &yoloResult)
 {
     const static int channel1_offset = YOLO_IMAGE_HEIGHT * YOLO_IMAGE_WIDTH;
     const static int channel2_offset = 2 * YOLO_IMAGE_HEIGHT * YOLO_IMAGE_WIDTH;
@@ -32,12 +32,8 @@ std::vector<std::vector<YoloResult>> Yolov5TensorRt::infer(const std::vector<cv:
 
     //输入的图像数目超过batch_size或TensorRt初始化失败，直接返回
     if (((int)images.size() > m_batch_size) || !m_bInitOk) {
-        std::vector<std::vector<YoloResult>> results(images.size());
-        for (size_t i = 0; i < images.size(); i++)
-        {
-            qInfo() << "Yolov5TensorRt infer error!";
-            return results;
-        }
+        qInfo() << "Yolov5TensorRt infer error!";
+        return false;
     }
 
     auto start = std::chrono::system_clock::now();
@@ -103,7 +99,10 @@ std::vector<std::vector<YoloResult>> Yolov5TensorRt::infer(const std::vector<cv:
         }
         results[i] = result;
     }
+
+    yoloResult = results;
     auto end = std::chrono::system_clock::now();
-    std::cout << "inference time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
-    return results;
+//    std::cout << "yolo inference time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+
+    return true;
 }

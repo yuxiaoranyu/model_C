@@ -37,24 +37,25 @@ void ResNetTensorRt::preprocessing(const cv::Mat &images, float *blob)
     cv::split(floatImage, chw);
 }
 
-std::vector<ResNetResult> ResNetTensorRt::infer(const std::vector<cv::Mat> &images)
+ bool ResNetTensorRt::infer(const std::vector<cv::Mat> &images, std::vector<ResNetResult> &resnetResult)
 {
-    std::vector<ResNetResult> resnet_data;
-    for (size_t i = 0; i < images.size(); i++)
+    if (m_bInitOk)
     {
-        ResNetResult result;
-        if (m_bInitOk)
+        for (size_t i = 0; i < images.size(); i++)
         {
+            ResNetResult result;
             memset((void *)m_cudaInputData, 0, sizeof(m_cudaInputData));
             memset((void *)m_cudaOutputData, 0, sizeof(m_cudaOutputData));
             preprocessing(images[i], m_cudaInputData); //图像预处理
             doInference(1, m_cudaInputData, sizeof(m_cudaInputData), m_cudaOutputData, sizeof(m_cudaOutputData));
             int max_num_index = std::max_element(m_cudaOutputData, m_cudaOutputData + RESNET_OUTPUT_SIZE) - m_cudaOutputData;  //max_element: 返回容器中最大值的指针
             result.classId = max_num_index;
-        }
 
-        resnet_data.push_back(result);
+            resnetResult.push_back(result);
+        }
+        return true;
     }
-    return resnet_data;
+
+    return false;;
 }
 

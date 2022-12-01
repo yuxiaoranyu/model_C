@@ -9,6 +9,7 @@ public:
     ~PatchCore(); //析构函数
 
     bool init(Config_Data &config);                             //初始化函数
+    bool update(Config_Data &config);                           //参数更新函数
     void cleanup();                                             //清理函数
     PatchCore_Result infer(const std::vector<cv::Mat> &images); //图片异常检测
 

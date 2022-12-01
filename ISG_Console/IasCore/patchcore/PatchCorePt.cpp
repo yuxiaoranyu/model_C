@@ -10,7 +10,7 @@ PatchCorePt::PatchCorePt(Config_Data &config, const int batch_size, const bool i
     std::cout << "patchcore cuda: " << torch::cuda::is_available() << std::endl; //检查GPU是否可用
     m_config_data = config;                                                      //存储算法参数
 
-    m_model = torch::jit::load(config.model_path); // python深度学习框架，加载模型，返回模型对象
+    m_model = torch::jit::load(config.model_path); //python深度学习框架，加载模型，返回模型对象
     m_model.eval();                                //不启用 Batch Normalization 和 Dropout
 
     //算法初始被调用，推理开销长。预触发模型几次forward()，降低算法首次处理的时间开销
@@ -32,6 +32,28 @@ PatchCorePt::PatchCorePt(Config_Data &config, const int batch_size, const bool i
             m_template_mat_vector.push_back(cv::imread(templateImage_filename[i]));
         }
     }
+}
+
+bool PatchCorePt::update(Config_Data &config)
+{
+    //清除历史配置数据
+    m_template_mat_vector.clear();
+
+    //重新加载配置
+    m_config_data = config;
+
+    //读取模板文件
+    if (m_config_data.btemplate_match)
+    {
+        std::vector<std::string> templateImage_filename;
+        cv::glob(config.template_path, templateImage_filename, false); //遍历template_path路径下的所有模板图像文件，不遍历子文件夹
+        for (size_t i = 0; i < templateImage_filename.size(); i++)
+        {
+            m_template_mat_vector.push_back(cv::imread(templateImage_filename[i]));
+        }
+    }
+
+    return true;
 }
 
 PatchCorePt::~PatchCorePt()
@@ -70,7 +92,7 @@ PatchCore_Forward_Result PatchCorePt::forward(const std::vector<cv::Mat> &images
     PatchCore_Forward_Result forward_result;
     forward_result.score = pred_score.toTensor().item<float>();
     forward_result.output_mat = output_mat;
-
+//    std::cout<<"infer score ******* "<<forward_result.score<<std::endl;
     return forward_result;
 }
 

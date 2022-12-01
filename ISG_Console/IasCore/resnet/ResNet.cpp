@@ -12,7 +12,9 @@ ResNet::~ResNet()
 bool ResNet::init(const std::string &config_path)
 {
     m_resnetTensorRt = new ResNetTensorRt(config_path, 1);
-
+    if (!m_resnetTensorRt->getInit()){
+        return false;
+    }
     return true;
 }
 
@@ -24,7 +26,7 @@ void ResNet::cleanup()
     }
 }
 
-std::vector<ResNetResult> ResNet::infer(const std::vector<cv::Mat> &images)
+ bool ResNet::infer(const std::vector<cv::Mat> &images, std::vector<ResNetResult> &resnetResult)
 {
-    return m_resnetTensorRt->infer(images);
+    return m_resnetTensorRt->infer(images, resnetResult);
 }

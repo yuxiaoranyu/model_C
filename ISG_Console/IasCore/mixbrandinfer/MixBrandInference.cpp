@@ -51,7 +51,7 @@ bool MixBrandInference::load(const std::string &param)
 
     if (module_param.size() != 2)
     {
-        qInfo() << "YoloResnetInference load: module_param.size() != 2";
+        qInfo() << "MixBrandInference load: module_param.size() != 2";
         return false;
     }
 
@@ -60,22 +60,28 @@ bool MixBrandInference::load(const std::string &param)
         QString moduleIdString = QString::fromStdString("moduleId_" + std::to_string(i));
         QJsonObject moduleJsonObject = module_param.value(moduleIdString).toObject();
         std::string moduleMethod = moduleJsonObject.value("method").toString().toStdString();
-        if (moduleMethod == "yolov5")
+        if ((moduleMethod == "yolov5") && (i == 0))
         {
             //初始化模型
-            yoloparam.model_path = aiPath + "/resource/1.engine";
             yoloparam.yolo_model = new Yolov5();
-            yoloparam.yolo_model->init(yoloparam.model_path);
+            if (!yoloparam.yolo_model->init(aiPath + "/resource/0.engine"))
+            {
+                qInfo()<<"MixBrand yolov5 init failed!";
+                return false;
+            }
         }
-        else
+        else if ((moduleMethod == "resnet") && (i == 1))
         {
             //初始化模型
-            resnetparam.model_path = aiPath + "/resource/2.engine";
             resnetparam.resnet_model = new ResNet();
-            resnetparam.resnet_model->init(resnetparam.model_path);
+            if (!resnetparam.resnet_model->init(aiPath + "/resource/1.engine"))
+            {
+                qInfo()<<"MixBrand resnet init failed!";
+                return false;
+            }
 
             //加载标签文件
-            QFile file(QString::fromStdString(aiPath + "/resource/2.lbl"));
+            QFile file(QString::fromStdString(aiPath + "/resource/1.lbl"));
             if (file.open(QIODevice::ReadOnly))
             {
                 QByteArray all_data = file.readAll();
@@ -87,12 +93,14 @@ bool MixBrandInference::load(const std::string &param)
                 resnetparam.label_array = rootObj["labels"].toArray();
             }
         }
+        else
+        {
+            return false;
+        }
     }
 
     return true;
 }
-
-
 
 bool MixBrandInference::update(const std::string &param)
 {
@@ -106,8 +114,9 @@ std::vector<BaseAIResult> MixBrandInference::infer(const std::vector<int> &ids, 
     BaseAIResult inferResult;
     std::vector<BaseAIResult> inferResultVector;
 
-    if (ids.size() > 1) {
-        qInfo() << "YoloResnetInference error, only support one image infer, input image size is: " << ids.size();
+    if (ids.size() > 1)
+    {
+        qInfo() << "MixBrandInference error, input image size is: " << ids.size();
         for (size_t i = 0; i < ids.size(); i++)
         {
             inferResult.setResult(false);
@@ -117,83 +126,107 @@ std::vector<BaseAIResult> MixBrandInference::infer(const std::vector<int> &ids, 
     }
 
     QJsonArray pos_infoArray;
-    QJsonArray kickObjArray;
     bool result = true;
 
-    std::vector<std::vector<YoloResult>> yolo_result_data = yoloparam.yolo_model->infer(images);
+    std::vector<std::vector<YoloResult>> yoloResult;
 
-    //目前batch=1，所以yolo_result_data.size固定为1
-    for (size_t yolo_index = 0; yolo_index < yolo_result_data.size(); yolo_index++)
+    if (yoloparam.yolo_model->infer(images, yoloResult))
     {
-//        std::cout << "yolo result size " << yolo_result_data[yolo_index].size() << std::endl;
-        if (yolo_result_data[yolo_index].size() != 0)  //仅分析检测出的第一个目标
+        //目前batch=1，所以yolo_result_data.size固定为1
+        for (size_t yolo_index = 0; yolo_index < yoloResult.size(); yolo_index++)
         {
-            int x1 = yolo_result_data[yolo_index][0].box.tl().x;
-            int y1 = yolo_result_data[yolo_index][0].box.tl().y;
-            int x2 = yolo_result_data[yolo_index][0].box.br().x;
-            int y2 = yolo_result_data[yolo_index][0].box.br().y;
-/*
-            std::cout << "******************x1******************** " << x1 << std::endl;
-            std::cout << "******************x2******************** " << x1 << std::endl;
-            std::cout << "******************y1******************** " << y1 << std::endl;
-            std::cout << "******************y2******************** " << y2 << std::endl;
-*/
-            cv::Rect cropRect(cv::Point(std::max(x1, 0), std::max(y1, 0)), cv::Point(std::min(x2, images[0].cols), std::min(y2, images[0].rows)));
-            std::vector<cv::Mat> resnet_input;
-            resnet_input.push_back(images[yolo_index](cropRect));
-            std::vector<ResNetResult> resnet_result_data = resnetparam.resnet_model->infer(resnet_input);
+            QJsonObject yolo_posinfoObj, yolo_paramsObj; //构建pos_info的json
+            QJsonArray yolo_drawArray;                   //图形单元数组
 
-            int classId = resnet_result_data[yolo_index].classId; //检测目标的分类ID
-
-            QJsonObject labelJsonObj = resnetparam.label_array[classId].toObject();
-            bool isDefective = labelJsonObj["isDefective"].toBool();
-            QString aliasString = labelJsonObj["alias"].toString();
-            QString colorString = labelJsonObj["color"].toString("FF0000");
-
-            if (isDefective) //杂物类别
+            for (size_t result_index = 0; result_index < yoloResult[yolo_index].size(); result_index++)
             {
+                std::vector<cv::Mat> resnet_input;
+                int x1 = yoloResult[yolo_index][result_index].box.tl().x;
+                int y1 = yoloResult[yolo_index][result_index].box.tl().y;
+                int x2 = yoloResult[yolo_index][result_index].box.br().x;
+                int y2 = yoloResult[yolo_index][result_index].box.br().y;
+                QJsonArray yolo_pointArray;    //构建图形单元points的json
+                QJsonObject yolo_ltObj, yolo_rbObj,yolo_drawObj; //左上角坐标,右上角坐标
+                yolo_ltObj.insert("x",x1);
+                yolo_ltObj.insert("y",y1);
+                yolo_rbObj.insert("x",x2);
+                yolo_rbObj.insert("y",y2);
+                yolo_pointArray.append(yolo_ltObj);
+                yolo_pointArray.append(yolo_rbObj);
+                yolo_drawObj.insert("color", "08A7FA");
+                yolo_drawObj.insert("points",yolo_pointArray);
+                yolo_drawObj.insert("shapeType", 2);
+                yolo_drawArray.append(yolo_drawObj);
+            }
+            yolo_posinfoObj.insert("id", 0);
+            yolo_posinfoObj.insert("moduleId", 0);  //yolo结果
+            yolo_posinfoObj.insert("classes", "null");
+            yolo_posinfoObj.insert("label", "it is a label");
+            yolo_posinfoObj.insert("draw", yolo_drawArray);
+            yolo_paramsObj.insert("target_num", int(yoloResult[yolo_index].size()));
+            yolo_posinfoObj.insert("params", yolo_paramsObj);
+            if (yoloResult[yolo_index].size() == 25)  //烟箱堆垛的烟条数目为25
+            {
+                yolo_posinfoObj.insert("result", 1);
+                result = true;
+            }
+            else {
+                yolo_posinfoObj.insert("result", 0);
                 result = false;
-                std::vector<cv::Point2f> in_pos;  //杂物图像坐标
-                std::vector<cv::Point2f> out_pos; //杂物物理坐标
+            }
+            pos_infoArray.append(yolo_posinfoObj);
 
-                in_pos.push_back(cv::Point2f(x1 + x2 / 2, y1 + y2 / 2));
+            if (result)
+            {
+                for (size_t result_index = 0; result_index < yoloResult[yolo_index].size(); result_index++)
+                {
+                    std::vector<cv::Mat> resnetInput;
+                    int x1 = yoloResult[yolo_index][result_index].box.tl().x;
+                    int y1 = yoloResult[yolo_index][result_index].box.tl().y;
+                    int x2 = yoloResult[yolo_index][result_index].box.br().x;
+                    int y2 = yoloResult[yolo_index][result_index].box.br().y;
+                    cv::Rect crop(cv::Point(std::max(x1, 0), std::max(y1, 0)),
+                                  cv::Point(std::min(x2, images[0].cols), std::min(y2, images[0].rows)));
+                    resnetInput.push_back(images[0](crop));
+                    std::vector<ResNetResult> resnetResult;
+                    if (resnetparam.resnet_model->infer(resnetInput, resnetResult))
+                    {
 
-                QJsonArray pointArray;  //构建图形单元points的json
-                QJsonObject ltObj, rbObj; //左上角坐标,右上角坐标
+                        int classId = resnetResult[result_index].classId;
+                        QJsonObject labelJsonObj = resnetparam.label_array[classId].toObject();
+                        QString aliasString = labelJsonObj["alias"].toString();
+                        QString colorString = labelJsonObj["color"].toString("FF0000");
+                        bool isDefective = labelJsonObj["isDefective"].toBool();
+                        if (isDefective)
+                        {
+                            QJsonArray pointArray;    //构建图形单元points的json
+                            QJsonObject ltObj, rbObj; //左上角坐标,右上角坐标
 
-                ltObj.insert("x", x1);
-                ltObj.insert("y", y1);
-                rbObj.insert("x", x2);
-                rbObj.insert("y", y2);
-                pointArray.append(ltObj);
-                pointArray.append(rbObj);
+                            ltObj.insert("x", x1);
+                            ltObj.insert("y", y1);
+                            rbObj.insert("x", x2);
+                            rbObj.insert("y", y2);
+                            pointArray.append(ltObj);
+                            pointArray.append(rbObj);
+                            QJsonObject resnet_drawObj, resnet_posinfoObj, resnet_paramsObj; //图形单元
+                            QJsonArray resnet_drawArray;                                     //图形单元数组
 
-                QJsonObject drawObj; //图形单元
-                QJsonArray drawArray; //图形单元数组
-
-                drawObj.insert("points", pointArray);
-                drawObj.insert("color", colorString);
-                drawObj.insert("shapeType", 2);
-                drawArray.append(drawObj);
-
-                QJsonObject kickObj;  //烟丝杂物剔除坐标点json
-                kickObj.insert("x", (int)out_pos[0].x);
-                kickObj.insert("y", (int)out_pos[0].y);
-
-                QJsonObject paramObj; //构建算法返回参数params的json
-                paramObj.insert("kick_coordinate", kickObj);
-
-                QJsonObject pos_infoObj;   //构建pos_info的json
-                pos_infoObj.insert("id", int(yolo_index));
-                pos_infoObj.insert("moduleId", 1);
-                pos_infoObj.insert("classes", classId);
-                pos_infoObj.insert("label", aliasString);
-                pos_infoObj.insert("draw", drawArray);
-                pos_infoObj.insert("result", 0);
-                pos_infoObj.insert("params", paramObj);
-                pos_infoArray.append(pos_infoObj);
-
-                kickObjArray.append(kickObj);
+                            resnet_drawObj.insert("points", pointArray);
+                            resnet_drawObj.insert("color", colorString);
+                            resnet_drawObj.insert("shapeType", 2);
+                            resnet_drawArray.append(resnet_drawObj);
+                            resnet_posinfoObj.insert("id", int(result_index + 1));
+                            resnet_posinfoObj.insert("moduleId", 1);
+                            resnet_posinfoObj.insert("classes", classId);
+                            resnet_posinfoObj.insert("label", aliasString);
+                            resnet_posinfoObj.insert("draw", resnet_drawArray);
+                            resnet_posinfoObj.insert("result", 0);
+                            resnet_posinfoObj.insert("params", resnet_paramsObj);
+                            pos_infoArray.append(resnet_posinfoObj);
+                            result = false;
+                        }
+                    }
+                }
             }
         }
     }
@@ -202,19 +235,10 @@ std::vector<BaseAIResult> MixBrandInference::infer(const std::vector<int> &ids, 
     QString pos_infoSrting = QJsonDocument(pos_infoArray).toJson();
     inferResult.setPositionInfo(pos_infoSrting.toStdString());
 
-    if (kickObjArray.size() > 0) //构建IsgInfo
-    {
-        QJsonObject isgObj;
-
-        isgObj.insert("kick_coordinate", kickObjArray);
-        QString isgInfoString = QJsonDocument(isgObj).toJson();
-        inferResult.setIsgInfo(isgInfoString.toStdString());
-    }
-
     for (size_t i = 0; i < ids.size(); ++i)
     {
         inferResultVector.push_back(inferResult);
     }
-//    std::cout << "infer result ***************************** " << inferResult.getPositionInfo() << std::endl;
+
     return inferResultVector;
 }

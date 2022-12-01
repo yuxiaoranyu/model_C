@@ -15,6 +15,7 @@ public:
     explicit PatchCorePt(Config_Data &config, const int batch_size, const bool isGPU = true); //构造函数
     ~PatchCorePt();                                                                           //析构函数
     PatchCore_Result infer(const std::vector<cv::Mat> &images);                               //图片异常检测
+    bool update(Config_Data &config);
 
 private:
     PatchCore_Forward_Result forward(const std::vector<cv::Mat> &images);                                   // PatchCore推理

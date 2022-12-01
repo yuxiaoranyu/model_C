@@ -26,7 +26,8 @@ public:
     bool remove() override;
 
 private:
-    std::map<int, PatchCore *> m_camera_map;
+    bool load_update_process(const std::string &param, bool isLoad); //加载、更新参数设置
+    std::map<int, PatchCore *> m_camera_map; //各相机使用各自的PatchCore对象
 };
 
 class PatchCoreInferenceFactory : public BaseAiInferenceFactory

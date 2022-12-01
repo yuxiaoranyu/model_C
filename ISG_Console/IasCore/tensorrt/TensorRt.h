@@ -13,7 +13,7 @@ public:
 public:
     bool m_bInitOk; //初始化成功标记
 
-private:
+private: 
     nvinfer1::IRuntime *m_runtime; //将 CudaEngine 的序列化缓存文件反序列化回来
     nvinfer1::ICudaEngine *m_engine; //推理引擎
     nvinfer1::IExecutionContext *m_context;  //推理引擎运行上下文

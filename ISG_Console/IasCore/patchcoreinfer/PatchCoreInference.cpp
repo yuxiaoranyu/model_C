@@ -38,6 +38,16 @@ bool PatchCoreInference::remove()
 
 bool PatchCoreInference::load(const std::string &param)
 {
+    return load_update_process(param, true);
+}
+
+bool PatchCoreInference::update(const std::string &param)
+{
+    return load_update_process(param, false);
+}
+
+bool PatchCoreInference::load_update_process(const std::string &param, bool isLoad)
+{
     std::string aiPath = getPath(); //获取算法路径
 
     QJsonDocument jsonDoc = QJsonDocument::fromJson(QString::fromStdString(param).toLocal8Bit());
@@ -57,17 +67,19 @@ bool PatchCoreInference::load(const std::string &param)
             QJsonObject cameraJsonObject = camera_param.value(QString("cameraId_%1").arg(camera_id)).toObject();
             Config_Data config;
 
-            config.model_path = aiPath + "/resource/" + std::to_string(camera_id) + ".pt";
+            config.model_path = aiPath + "/resource/" + "0_" + std::to_string(camera_id) + ".pt";
             config.template_path = aiPath + "/template/" + std::to_string(camera_id);
             config.btemplate_match = btemplate_match;
-            config.heat_threshold = cameraJsonObject.value("heat_threshold").toString().toInt();
-            config.heat_binary_min_area = cameraJsonObject.value("heat_binary_min_area").toString().toInt();
-            config.defective_min_area = cameraJsonObject.value("defective_min_area").toString().toInt();
-            config.expand_pixel = cameraJsonObject.value("expand_pixel").toString().toInt();
-            config.diff_threshold = cameraJsonObject.value("diff_threshold").toString().toInt();
-            config.dismatched_point_threshold = cameraJsonObject.value("dismatched_point_threshold").toString().toInt();
-            config.score_min_threshold = cameraJsonObject.value("score_min_threshold").toString().toFloat();
-            config.score_max_threshold = cameraJsonObject.value("score_max_threshold").toString().toFloat();
+            config.heat_threshold = cameraJsonObject.value("heat_threshold").toInt();
+            config.heat_binary_min_area = cameraJsonObject.value("heat_binary_min_area").toInt();
+            config.defective_min_area = cameraJsonObject.value("defective_min_area").toInt();
+            config.expand_pixel = cameraJsonObject.value("expand_pixel").toInt();
+            config.diff_threshold = cameraJsonObject.value("diff_threshold").toInt();
+            config.dismatched_point_threshold = cameraJsonObject.value("dismatched_point_threshold").toInt();
+            config.score_min_threshold = cameraJsonObject.value("score_min_threshold").toDouble();
+            config.score_max_threshold = cameraJsonObject.value("score_max_threshold").toDouble();
+            config.effective_area.clear();
+            qInfo()<<"score min thresold"<<config.score_min_threshold;
             QJsonObject effective_area = cameraJsonObject.value("effective_area").toObject();
             QJsonArray points = effective_area.value("points").toArray();
             for (int i = 0; i < points.size(); i++)
@@ -75,20 +87,32 @@ bool PatchCoreInference::load(const std::string &param)
                 cv::Point point;
                 point.x = points[i].toObject().value("x").toInt();
                 point.y = points[i].toObject().value("y").toInt();
+                qInfo()<<"effective_area"<<point.x;
+                qInfo()<<"effective_area"<<point.y;
                 config.effective_area.push_back(point);
             }
-            PatchCore *patchcore = new PatchCore();
-            m_camera_map[camera_id] = patchcore;
-            patchcore->init(config);
+
+            if (isLoad)
+            {
+                PatchCore *patchcore = new PatchCore();
+                m_camera_map[camera_id] = patchcore;
+                if (!patchcore->init(config))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if (m_camera_map[camera_id] != nullptr)
+                {
+                    if (!m_camera_map[camera_id]->update(config))
+                    {
+                        return false;
+                    }
+                }
+            }
         }
     }
-
-    return true;
-}
-
-bool PatchCoreInference::update(const std::string &param)
-{
-    (void)param;
 
     return true;
 }
@@ -153,7 +177,7 @@ std::vector<BaseAIResult> PatchCoreInference::infer(const std::vector<int> &ids,
 
     QString pos_infoSrting = QJsonDocument(pos_infoArray).toJson();
     inferResult.setPositionInfo(pos_infoSrting.toStdString());
-//    std::cout<<"result*********************"<<inferResult.getPositionInfo()<<std::endl;
+//    std::cout << "result*********************" << inferResult.getPositionInfo() << std::endl;
     for (size_t i = 0; i < ids.size(); ++i)
     {
         inferResultVector.push_back(inferResult);
